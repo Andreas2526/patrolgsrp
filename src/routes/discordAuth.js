@@ -3,6 +3,11 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
 const authenticateSession = require('../middleware/authenticateSession');
+const {
+  requireOfficerAccess,
+  requireSupervisorAccess,
+  requireAdminAccess,
+} = require('../middleware/requireRoleAccess');
 
 const router = express.Router();
 
@@ -56,6 +61,31 @@ router.get('/discord/login', (req, res) => {
 
 router.get('/session/me', authenticateSession, (req, res) => {
   return res.json({ user: req.user });
+});
+
+
+router.get('/protected/officer', authenticateSession, requireOfficerAccess, (req, res) => {
+  return res.json({
+    access: 'granted',
+    requiredRole: 'officer',
+    authorization: req.authorization,
+  });
+});
+
+router.get('/protected/supervisor', authenticateSession, requireSupervisorAccess, (req, res) => {
+  return res.json({
+    access: 'granted',
+    requiredRole: 'supervisor',
+    authorization: req.authorization,
+  });
+});
+
+router.get('/protected/admin', authenticateSession, requireAdminAccess, (req, res) => {
+  return res.json({
+    access: 'granted',
+    requiredRole: 'admin',
+    authorization: req.authorization,
+  });
 });
 
 router.get('/discord/callback', async (req, res) => {
