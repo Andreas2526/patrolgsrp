@@ -1,11 +1,13 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const discordAuthRoutes = require('./routes/discordAuth');
+const zonesRoutes = require('./routes/zones');
 
 const app = express();
 
 app.use(cookieParser());
 app.use('/auth', discordAuthRoutes);
+app.use('/', zonesRoutes);
 
 module.exports = app;
 
