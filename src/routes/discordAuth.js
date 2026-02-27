@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+const authenticateSession = require('../middleware/authenticateSession');
 
 const router = express.Router();
 
@@ -48,6 +49,11 @@ router.get('/discord/login', (req, res) => {
   authUrl.searchParams.set('state', state);
 
   return res.redirect(authUrl.toString());
+});
+
+
+router.get('/session/me', authenticateSession, (req, res) => {
+  return res.json({ user: req.user });
 });
 
 router.get('/discord/callback', async (req, res) => {
