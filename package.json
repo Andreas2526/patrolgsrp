@@ -5,7 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "check": "node --check src/routes/discordAuth.js && node --check src/server.js && node --check src/utils/discordGuildAccess.js"
+    "check": "node --check src/routes/discordAuth.js && node --check src/server.js && node --check src/utils/discordGuildAccess.js && node --check src/utils/rbac.js && node --check src/middleware/authenticateSession.js && node --check src/middleware/requireRoleAccess.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
