@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
 const authenticateSession = require('../middleware/authenticateSession');
 
@@ -12,6 +13,7 @@ const {
   NEXTJS_FRONTEND_URL,
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
+  JWT_SESSION_SECRET,
 } = process.env;
 
 if (
@@ -20,7 +22,8 @@ if (
   !DISCORD_CALLBACK_URL ||
   !NEXTJS_FRONTEND_URL ||
   !SUPABASE_URL ||
-  !SUPABASE_SERVICE_ROLE_KEY
+  !SUPABASE_SERVICE_ROLE_KEY ||
+  !JWT_SESSION_SECRET
 ) {
   // eslint-disable-next-line no-console
   console.warn('Missing required environment variables for Discord OAuth route.');
@@ -50,7 +53,6 @@ router.get('/discord/login', (req, res) => {
 
   return res.redirect(authUrl.toString());
 });
-
 
 router.get('/session/me', authenticateSession, (req, res) => {
   return res.json({ user: req.user });
@@ -104,29 +106,42 @@ router.get('/discord/callback', async (req, res) => {
       ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
       : null;
 
-    const { error } = await supabase.from('users').upsert(
-      {
-        discord_id: discordUser.id,
-        username: discordUser.username,
-        avatar: avatarUrl,
-      },
-      {
-        onConflict: 'discord_id',
-      },
-    );
+    const { data: user, error } = await supabase
+      .from('users')
+      .upsert(
+        {
+          discord_id: discordUser.id,
+          username: discordUser.username,
+          avatar: avatarUrl,
+        },
+        {
+          onConflict: 'discord_id',
+        },
+      )
+      .select('id, discord_id, username, avatar, role')
+      .single();
 
-    if (error) {
+    if (error || !user) {
       // eslint-disable-next-line no-console
-      console.error('Supabase upsert failed:', error.message);
+      console.error('Supabase upsert failed:', error?.message || 'user_not_returned');
       return res.redirect(`${NEXTJS_FRONTEND_URL}/login?error=user_persist_failed`);
     }
+
+    const sessionToken = jwt.sign(
+      {
+        userId: user.id,
+        discordId: user.discord_id,
+      },
+      JWT_SESSION_SECRET,
+      { expiresIn: '7d', subject: user.discord_id },
+    );
 
     res.clearCookie('discord_oauth_state');
 
     return res.redirect(
       `${NEXTJS_FRONTEND_URL}/auth/callback?provider=discord&discord_id=${encodeURIComponent(
         discordUser.id,
-      )}`,
+      )}&token=${encodeURIComponent(sessionToken)}`,
     );
   } catch (err) {
     // eslint-disable-next-line no-console
